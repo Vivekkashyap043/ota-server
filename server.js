@@ -12,6 +12,11 @@ app.use(fileUpload());
 const BUNDLE_DIR = path.join(__dirname, 'bundles'); 
 const VERSION_FILE = path.join(__dirname, 'versions.json');
 
+// Ensure the directory exists
+if (!fs.existsSync(BUNDLE_DIR)) {
+  fs.mkdirSync(BUNDLE_DIR, { recursive: true });
+}
+
 app.get('/update', (req, res) => {
   if (!fs.existsSync(VERSION_FILE)) {
     return res.status(404).json({ error: 'No updates available' });
@@ -20,36 +25,33 @@ app.get('/update', (req, res) => {
   res.json(metadata);
 });
 
-app.post('/upload', async (req, res) => {
+app.post('/upload', (req, res) => {
   if (!req.files || !req.files.bundle) {
-    return res.status(400).send('No bundle file uploaded.');
+    return res.status(400).json({ error: 'No bundle file uploaded.' });
   }
 
   const bundleFile = req.files.bundle;
-  const zipPath = path.join(BUNDLE_DIR, 'update.zip');
+  const bundlePath = path.join(BUNDLE_DIR, 'update.zip'); // Ensure it's saved as update.zip
 
-  // Save ZIP file
-  await bundleFile.mv(zipPath);
+  // Move uploaded file
+  bundleFile.mv(bundlePath, (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'File upload failed', details: err });
+    }
 
-  // Extract ZIP
-  fs.createReadStream(zipPath)
-    .pipe(unzipper.Extract({ path: BUNDLE_DIR }))
-    .on('close', () => {
-      // Update versions.json with the new version
-      const newVersion = Date.now().toString(); // Unique version identifier
-      const newMetadata = {
-        version: newVersion,
-        bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/index.bundle`
-      };
+    // Update versions.json with the new version
+    const newVersion = Date.now().toString(); // Unique version identifier
+    const newMetadata = {
+      version: newVersion,
+      bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/update.zip`
+    };
 
-      fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
+    fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
 
-      res.json({ message: 'Bundle uploaded and extracted successfully', version: newVersion });
-    })
-    .on('error', (err) => {
-      res.status(500).send('Error extracting update.zip: ' + err.message);
-    });
+    res.json({ message: 'Bundle uploaded successfully', version: newVersion });
+  });
 });
+
 
 app.use('/bundles', express.static(BUNDLE_DIR));
 
