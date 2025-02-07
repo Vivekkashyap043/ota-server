@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
+const unzipper = require('unzipper'); // 📌 Import unzipper
 
 const app = express();
 app.use(cors());
@@ -19,35 +20,40 @@ app.get('/update', (req, res) => {
   res.json(metadata);
 });
 
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
   if (!req.files || !req.files.bundle) {
     return res.status(400).send('No bundle file uploaded.');
   }
 
   const bundleFile = req.files.bundle;
-  const bundlePath = path.join(BUNDLE_DIR, 'index.bundle');
+  const zipPath = path.join(BUNDLE_DIR, 'update.zip');
 
-  bundleFile.mv(bundlePath, (err) => {
-    if (err) {
-      return res.status(500).send(err);
-    }
+  // Save ZIP file
+  await bundleFile.mv(zipPath);
 
-    // Update versions.json with the new version
-    const newVersion = (Date.now()).toString(); // Unique version identifier
-    const newMetadata = {
-      version: newVersion,
-      bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/index.bundle`
-    };
+  // Extract ZIP
+  fs.createReadStream(zipPath)
+    .pipe(unzipper.Extract({ path: BUNDLE_DIR }))
+    .on('close', () => {
+      // Update versions.json with the new version
+      const newVersion = Date.now().toString(); // Unique version identifier
+      const newMetadata = {
+        version: newVersion,
+        bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/index.bundle`
+      };
 
-    fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
+      fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
 
-    res.json({ message: 'Bundle uploaded successfully', version: newVersion });
-  });
+      res.json({ message: 'Bundle uploaded and extracted successfully', version: newVersion });
+    })
+    .on('error', (err) => {
+      res.status(500).send('Error extracting update.zip: ' + err.message);
+    });
 });
 
 app.use('/bundles', express.static(BUNDLE_DIR));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`OTA Server running on port ${PORT}`);
+  console.log(`✅ OTA Server running on port ${PORT}`);
 });
