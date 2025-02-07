@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(fileUpload());
 
-const BUNDLE_DIR = path.join(__dirname, 'public');
+const BUNDLE_DIR = path.join(__dirname, 'bundles'); 
 const VERSION_FILE = path.join(__dirname, 'versions.json');
 
 app.get('/update', (req, res) => {
