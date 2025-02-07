@@ -36,7 +36,7 @@ app.post('/upload', (req, res) => {
     const newVersion = (Date.now()).toString(); // Unique version identifier
     const newMetadata = {
       version: newVersion,
-      bundleUrl: `https://your-hosted-server.com/bundles/index.bundle`
+      bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/index.bundle`
     };
 
     fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
