@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(fileUpload());
 
-const BUNDLE_DIR = path.join(__dirname, 'bundles'); 
+const BUNDLE_DIR = path.join(__dirname, 'public'); 
 const VERSION_FILE = path.join(__dirname, 'versions.json');
 
 // Ensure the directory exists
@@ -25,21 +25,20 @@ app.get('/update', (req, res) => {
   res.json(metadata);
 });
 
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
   if (!req.files || !req.files.bundle) {
     return res.status(400).json({ error: 'No bundle file uploaded.' });
   }
 
   const bundleFile = req.files.bundle;
-  const bundlePath = path.join(BUNDLE_DIR, 'update.zip'); // Ensure it's saved as update.zip
+  const bundlePath = path.join(BUNDLE_DIR, 'update.zip');
 
   // Move uploaded file
-  bundleFile.mv(bundlePath, (err) => {
+  bundleFile.mv(bundlePath, async (err) => {
     if (err) {
       return res.status(500).json({ error: 'File upload failed', details: err });
     }
 
-    // Update versions.json with the new version
     const newVersion = Date.now().toString(); // Unique version identifier
     const newMetadata = {
       version: newVersion,
