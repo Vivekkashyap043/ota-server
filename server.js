@@ -3,20 +3,20 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-const unzipper = require('unzipper'); // 📌 Import unzipper
 
 const app = express();
 app.use(cors());
 app.use(fileUpload());
 
-const BUNDLE_DIR = path.join(__dirname, 'public'); 
+const BUNDLE_DIR = path.join(__dirname, 'bundles'); 
 const VERSION_FILE = path.join(__dirname, 'versions.json');
 
-// Ensure the directory exists
+// Ensure bundle directory exists
 if (!fs.existsSync(BUNDLE_DIR)) {
   fs.mkdirSync(BUNDLE_DIR, { recursive: true });
 }
 
+// Endpoint to check for updates
 app.get('/update', (req, res) => {
   if (!fs.existsSync(VERSION_FILE)) {
     return res.status(404).json({ error: 'No updates available' });
@@ -25,7 +25,8 @@ app.get('/update', (req, res) => {
   res.json(metadata);
 });
 
-app.post('/upload', async (req, res) => {
+// Endpoint to upload new bundle
+app.post('/upload', (req, res) => {
   if (!req.files || !req.files.bundle) {
     return res.status(400).json({ error: 'No bundle file uploaded.' });
   }
@@ -34,15 +35,16 @@ app.post('/upload', async (req, res) => {
   const bundlePath = path.join(BUNDLE_DIR, 'update.zip');
 
   // Move uploaded file
-  bundleFile.mv(bundlePath, async (err) => {
+  bundleFile.mv(bundlePath, (err) => {
     if (err) {
       return res.status(500).json({ error: 'File upload failed', details: err });
     }
 
+    // Update versions.json
     const newVersion = Date.now().toString(); // Unique version identifier
     const newMetadata = {
       version: newVersion,
-      bundleUrl: `https://ota-server-3a0s.onrender.com/bundles/update.zip`
+      bundleUrl: `https://your-server.com/bundles/update.zip`
     };
 
     fs.writeFileSync(VERSION_FILE, JSON.stringify(newMetadata, null, 2));
@@ -50,7 +52,6 @@ app.post('/upload', async (req, res) => {
     res.json({ message: 'Bundle uploaded successfully', version: newVersion });
   });
 });
-
 
 app.use('/bundles', express.static(BUNDLE_DIR));
 
